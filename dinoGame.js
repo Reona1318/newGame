@@ -1,4 +1,3 @@
-
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const imageNames = ['bird', 'cactus', 'dino'];
@@ -12,6 +11,7 @@ const game = {
     score: 0,
     timer: null
 };
+
 // 複数画像読み込み
 let imageLoadCounter = 0;
 for (const imageName of imageNames) {
@@ -25,7 +25,9 @@ for (const imageName of imageNames) {
             init();
         }
     }
-}function init() {
+}
+
+function init() {
     game.counter    = 0;
     game.enemys     = [];
     game.isGameOver = false;
@@ -34,4 +36,3 @@ for (const imageName of imageNames) {
     ctx.drawImage(game.image.cactus, 300, 320);
     ctx.drawImage(game.image.dino, 100, 320);
 }
-
