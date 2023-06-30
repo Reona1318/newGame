@@ -5,12 +5,17 @@ const imageNames = ['bird', 'cactus', 'dino'];
 // グローバルな game オブジェクト
 const game = {
     counter: 0,
+    backGrounds: [],
+    bgm1: new Audio('bgm/fieldSong.mp3'),
+    bgm2: new Audio('bgm/jump.mp3'),
     enemys: [],
+    enemyCountdown: 0,
     image: {},
-    isGameOver: true,
     score: 0,
+    state: 'loading',
     timer: null
 };
+game.bgm1.loop = true;
 
 // 複数画像読み込み
 let imageLoadCounter = 0;
@@ -30,9 +35,27 @@ for (const imageName of imageNames) {
 function init() {
     game.counter    = 0;
     game.enemys     = [];
-    game.isGameOver = false;
+    game.enemyCountdown = 0;
     game.score      = 0;
+    game.state      = 'init';
+    // 画面クリア
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // 恐竜の表示
     createDino();
+    drawDino();
+    // 背景の描画
+    createBackGround();
+    drawBackGrounds();
+    // 文章の表示
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 60px serif';
+    ctx.fillText(`Press Space key`, 60, 150);
+    ctx.fillText(`to start.`, 150, 230);
+}
+
+function start() {
+    game.state = 'gaming';
+    game.bgm1.play();
     game.timer = setInterval(ticker, 30);
 }
 
@@ -40,19 +63,20 @@ function ticker() {
     // 画面クリア
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // 背景の作成
+    if (game.counter % 10 === 0) {
+        createBackGround();
+    }
     // 敵キャラクターの生成
-    if(Math.floor(Math.random() * (100 - game.score / 100)) === 0) {
-        createCactus();
-    }
-    if(Math.floor(Math.random() * (200 - game.score / 100)) === 0) {
-        createBird();
-    }
+    createEnemys();
 
     // キャクターの移動
+    moveBackGrounds(); // 背景の移動
     moveDino(); // 恐竜の移動
     moveEnemys(); // 敵キャラクターの移動
 
     //描画
+    drawBackGrounds(); // 背景の描画
     drawDino();// 恐竜の描画
     drawEnemys(); // 敵キャラクターの描画
     drawScore(); // スコアの描画
@@ -63,6 +87,7 @@ function ticker() {
     // カウンターの更新
     game.score += 1;
     game.counter = (game.counter + 1) % 1000000;
+    game.enemyCountdown -= 1;
 }
 
 function createDino() {
@@ -76,9 +101,22 @@ function createDino() {
     }
 }
 
-function createCactus() {
+function createBackGround() {
+    game.backGrounds = [];
+    for (let x = 0; x <= canvas.width; x+=200) {
+        game.backGrounds.push({
+            x: x,
+            y: canvas.height,
+            width: 200,
+            height: 30,
+            moveX: -20,
+        });
+    }
+}
+
+function createCactus(createX) {
     game.enemys.push({
-        x: canvas.width + game.image.cactus.width / 2,
+        x: createX,
         y: canvas.height - game.image.cactus.height / 2,
         width: game.image.cactus.width,
         height: game.image.cactus.height,
@@ -99,6 +137,31 @@ function createBird() {
     });
 }
 
+function createEnemys() {
+    if (game.enemyCountdown === 0) {
+        game.enemyCountdown = 60 - Math.floor(game.score / 100);
+        if(game.enemyCountdown <= 30) game.enemyCountdown = 30;
+        switch(Math.floor(Math.random() * 3)) {
+            case 0:
+                createCactus(canvas.width + game.image.cactus.width / 2);
+                break;
+            case 1:
+                createCactus(canvas.width + game.image.cactus.width / 2);
+                createCactus(canvas.width + game.image.cactus.width * 3 / 2);
+                break;
+            case 2:
+                createBird();
+                break;
+        }
+    }
+}
+
+function moveBackGrounds() {
+    for (const backGround of game.backGrounds) {
+        backGround.x += backGround.moveX;
+    }
+}
+
 function moveDino() {
     game.dino.y += game.dino.moveY;
     if (game.dino.y >= canvas.height - game.dino.height / 2) {
@@ -117,6 +180,15 @@ function moveEnemys() {
     game.enemys = game.enemys.filter(enemy => enemy.x > -enemy.width);
 }
 
+function drawBackGrounds(){
+    ctx.fillStyle = 'sienna';
+    for (const backGround of game.backGrounds) {
+        ctx.fillRect(backGround.x, backGround.y - 5, backGround.width, 5);
+        ctx.fillRect(backGround.x+20, backGround.y - 10, backGround.width - 40, 5);
+        ctx.fillRect(backGround.x+50, backGround.y - 15, backGround.width - 100, 5);
+    }
+}
+
 function drawDino() {
     ctx.drawImage(game.image.dino, game.dino.x - game.dino.width / 2, game.dino.y - game.dino.height / 2);
 }
@@ -128,6 +200,7 @@ function drawEnemys() {
 }
 
 function drawScore() {
+    ctx.fillStyle = 'black';
     ctx.font = '24px serif';
     ctx.fillText(`score: ${game.score}`, 0, 30);
 }
@@ -138,7 +211,9 @@ function hitCheck() {
             Math.abs(game.dino.x - enemy.x) < game.dino.width * 0.8 / 2 + enemy.width * 0.9 / 2 &&
             Math.abs(game.dino.y - enemy.y) < game.dino.height * 0.5 / 2 + enemy.height * 0.9 / 2
         ) {
-            game.isGameOver = true;
+            game.state = 'gameover';
+            game.bgm1.pause();
+            ctx.fillStyle = 'black';
             ctx.font = 'bold 100px serif';
             ctx.fillText(`Game Over!`, 150, 200);
             clearInterval(game.timer);
@@ -147,10 +222,14 @@ function hitCheck() {
 }
 
 document.onkeydown = function(e) {
+    if(e.key === ' ' && game.state === 'init') {
+        start();
+    }
     if(e.key === ' ' && game.dino.moveY === 0) {
         game.dino.moveY = -41;
+        game.bgm2.play();
     }
-    if(e.key === 'Enter' && game.isGameOver === true) {
+    if(e.key === 'Enter' && game.state === 'gameover') {
         init();
     }
 };
